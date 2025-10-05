@@ -1048,18 +1048,46 @@ def draw_sidebar():
     pygame.draw.rect(screen, (50, 50, 50), (sidebar_x, 0, sidebar_width, height * cell_size))
     
     # Draw particle options
+    font = pygame.font.SysFont(None, 24)
+    font_small = pygame.font.SysFont(None, 18)
     for i, particle_type in enumerate(particle_types):
         y_pos = i * 60 + 10
-        
+
         # Use definitive color instead of creating sample particle
         color = PARTICLE_COLORS[particle_type]
-        
+
         # Draw colored rectangle
-        pygame.draw.rect(screen, color, (sidebar_x + 10, y_pos, 40, 40))
-        
+        box_rect = pygame.Rect(sidebar_x + 10, y_pos, 40, 40)
+        pygame.draw.rect(screen, color, box_rect)
+
         # Highlight selected particle
         if particle_type == selected_particle:
-            pygame.draw.rect(screen, (255, 255, 255), (sidebar_x + 10, y_pos, 40, 40), 3)
+            pygame.draw.rect(screen, (255, 255, 255), box_rect, 3)
+
+        # Draw the particle name inside the color box
+        # Format class name to something user-friendly (replace underscores, title case)
+        display_name = particle_type.__name__.replace('_', ' ').title()
+
+        # Choose text color based on luminance for contrast
+        r, g, b = color
+        luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        text_color = (0, 0, 0) if luminance > 160 else (255, 255, 255)
+
+        # Trim text with ellipsis if it doesn't fit the box using font_small
+        txt = display_name
+        name_surf = font_small.render(txt, True, text_color)
+        # reduce until it fits (allow a 4px padding)
+        if name_surf.get_width() > box_rect.width - 4:
+            # progressively trim and add ellipsis
+            while name_surf.get_width() > box_rect.width - 6 and len(txt) > 1:
+                txt = txt[:-1]
+                name_surf = font_small.render(txt + '...', True, text_color)
+            if name_surf.get_width() <= box_rect.width - 6:
+                name_surf = font_small.render(txt + '...', True, text_color)
+
+        # Center the text inside the color box
+        name_rect = name_surf.get_rect(center=box_rect.center)
+        screen.blit(name_surf, name_rect)
     # Draw temperature input box above the pause button
     global paused, temperature_input_active, temperature_input_text
     input_box_rect = pygame.Rect(sidebar_x + 10, height * cell_size - 110, sidebar_width - 20, 40)
