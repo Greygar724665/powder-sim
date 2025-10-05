@@ -716,21 +716,7 @@ class wet_sand(StraightFalling):
         self.max_lifetime = self.lifetime
         super().__init__(self.color[0], self.color[1], self.color[2])
 
-class ice(StraightFalling):
-    color = (180, 220, 255)  # Pale blue-white for ice
-    color_variance = (10,)
-    def __init__(self):
-        # Ice is a poor conductor compared to metals, but better than air
-        self.conductivity = 0.015
-        # Decays slowly toward ambient temperature (melts slowly)
-        self.decay_factor = 0.001
-        # Ice is cold by default, well below room temperature
-        self.temperature = -10.0
-        # Melts at 0°C, turns into water
-        self.melt_temp = 0
-        self.melt_to = water
-        self.melt_color = colorer(water.color[0], water.color[1], water.color[2], water.color_variance[0] if hasattr(water, 'color_variance') else 20)
-        super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
+
 
 # Light Gaseous particles
 class steam(LightGas):
@@ -787,6 +773,37 @@ class basalt(Static):
         # color variance: basalt has larger variance
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
+class ice(Static):
+    color = (180, 220, 255)  # Pale blue-white for ice
+    color_variance = (10,)
+    def __init__(self):
+        # Ice is a poor conductor compared to metals, but better than air
+        self.conductivity = 0.015
+        # Decays slowly toward ambient temperature (melts slowly)
+        self.decay_factor = 0.001
+        # Ice is cold by default, well below room temperature
+        self.temperature = -10.0
+        # Melts at 0°C, turns into water
+        self.melt_temp = 0
+        self.melt_to = water
+        self.melt_color = colorer(water.color[0], water.color[1], water.color[2], water.color_variance[0] if hasattr(water, 'color_variance') else 20)
+        super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
+
+class tungsten(Static):
+    color = (180, 180, 200)  # Silvery light gray-blue, still fits tungsten
+    color_variance = (6,)
+    def __init__(self):
+        # Tungsten is an excellent conductor
+        self.conductivity = 0.10
+        # Decays quickly toward ambient temperature (fast heat transfer)
+        self.decay_factor = 0.018
+        # Default temperature is ambient
+        self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        # Tungsten melts at 3422°C, turns into empty (simulate melting away)
+        self.melt_temp = 3422
+        self.melt_to = empty
+        self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
+        super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 # Bouncy particles
 class bouncy_ball(Bouncy):
@@ -794,16 +811,25 @@ class bouncy_ball(Bouncy):
     color_variance = (20,)
     def __init__(self):
         self.viscosity_timer = 0
-        self.viscosity =  5
+        self.viscosity =  2
+        # Rubber is a poor conductor, so low conductivity
+        self.conductivity = 0.005
+        # Decays slowly toward ambient temperature (insulator)
+        self.decay_factor = 0.0005
+        # Rubber is usually at room temperature by default
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        # Melts at around 180°C, turns into empty (simulate burning/melting away)
+        self.melt_temp = 180
+        self.melt_to = empty
+        self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
         super().__init__(self.color[0], self.color[1], self.color[2])
 
-width, height=150,100
+width, height=100,100
 grid = [[empty() for _ in range(width)] for _ in range(height)]
-
-
 cell_size=10
 sidebar_width = 150
+
+
 selected_particle = sand  # Default selection
 pygame.init()
 screen = pygame.display.set_mode((width * cell_size + sidebar_width, height * cell_size))
@@ -881,7 +907,7 @@ particle_list = [cls for cls in get_all_subclasses(Particle)
 
 for y in range(0,47):
     for x in range(0,50):
-        grid[y][x] = water()
+        grid[y][x] = tungsten()
 
 def handle_particle_specials(x, y, grid):
     target=grid[y][x]
@@ -1040,6 +1066,11 @@ def handle_particle_specials(x, y, grid):
         if p.lifetime <= 0:
             grid[y][x] = sand()
 
+    
+
+
+    
+
 def draw_sidebar():
     sidebar_x = width * cell_size
     particle_types = particle_list
@@ -1089,7 +1120,7 @@ def draw_sidebar():
         name_rect = name_surf.get_rect(center=box_rect.center)
         screen.blit(name_surf, name_rect)
     # Draw temperature input box above the pause button
-    global paused, temperature_input_active, temperature_input_text
+    global paused, temperature_input_active, temperature_input_text, thermogram
     input_box_rect = pygame.Rect(sidebar_x + 10, height * cell_size - 110, sidebar_width - 20, 40)
     font = pygame.font.SysFont(None, 24)
     # label
@@ -1109,30 +1140,52 @@ def draw_sidebar():
     text_rect = text_surf.get_rect(midleft=(input_box_rect.x + 6, input_box_rect.centery))
     screen.blit(text_surf, text_rect)
 
+    # Draw thermogram toggle button
+    thermogram_button_rect = pygame.Rect(sidebar_x + 10, height * cell_size - 170, sidebar_width - 20, 40)
+    pygame.draw.rect(screen, (100, 100, 100), thermogram_button_rect)
+    font_big = pygame.font.SysFont(None, 32)
+    therm_text = "Thermogram: On" if thermogram else "Thermogram: Off"
+    therm_surface = font_big.render(therm_text, True, (255, 255, 255))
+    therm_rect = therm_surface.get_rect(center=thermogram_button_rect.center)
+    screen.blit(therm_surface, therm_rect)
+
     # Draw pause button
     pause_button_rect = pygame.Rect(sidebar_x + 10, height * cell_size - 60, sidebar_width - 20, 40)
     pygame.draw.rect(screen, (100, 100, 100), pause_button_rect)
-    font_big = pygame.font.SysFont(None, 32)
     pause_text = "Pause" if not paused else "Resume"
     text_surface = font_big.render(pause_text, True, (255, 255, 255))
     text_rect = text_surface.get_rect(center=pause_button_rect.center)
     screen.blit(text_surface, text_rect)
 
-    # Handle pause button click (kept here so it responds during draw)
+    # Handle thermogram and pause button clicks (kept here so they respond during draw)
     mouse_pressed = pygame.mouse.get_pressed()
     mouse_x, mouse_y = pygame.mouse.get_pos()
+    if mouse_pressed[0] and thermogram_button_rect.collidepoint(mouse_x, mouse_y):
+        # toggle thermogram
+        thermogram = not thermogram
+        pygame.time.wait(200)  # Debounce click
+        # If disabling thermogram, force all empty instances to black
+        if not thermogram:
+            for yi in range(height):
+                for xi in range(width):
+                    if isinstance(grid[yi][xi], empty):
+                        grid[yi][xi].color = (0, 0, 0)
     if mouse_pressed[0] and pause_button_rect.collidepoint(mouse_x, mouse_y):
         paused = not paused
         pygame.time.wait(200)  # Debounce click
 
 frame_delay = 0
 simulation_speed = 1
-ambient_temperature = -20
+ambient_temperature = 10
 temperature_decay_factor = 0.005
 # UI state for the temperature input box in the sidebar
 temperature_input_active = False
 temperature_input_text = str(ambient_temperature)
 
+r_hue = 0/360.0
+g_hue = 120/360.0
+b_hue = 240/360.0
+thermogram = False
 def update_frame():
     # First pass: Movement
     for y in range(height-1, -1, -1):  # Bottom to top
@@ -1202,6 +1255,36 @@ def update_frame():
             cell = grid[y][x]
             grid[y][x].temperature = cell.new_temperature
             grid[y][x].new_temperature = 0
+
+    # Fifth pass:
+    #! Handle background thermogram
+    all_temperatures=[]
+    #^ Gather temp data
+    for yi in range(height):
+        for xi in range(width):
+            all_temperatures.append(grid[yi][xi].temperature)
+    min_temp = min(all_temperatures)
+    max_temp = max(all_temperatures)
+    avg_temp = sum(all_temperatures)/len(all_temperatures)
+    #^ Normalize and display temperature
+    if thermogram == True:
+        for yi in range(height):
+            for xi in range(width):
+                cell = grid[yi][xi]
+                if isinstance(cell, empty):
+                    # Prevent division by zero
+                    if cell.temperature < avg_temp:
+                        denom = (avg_temp - min_temp)
+                        n_temp = (cell.temperature - min_temp) / denom if denom != 0 else 0
+                        new_colors = hsv_to_rgb((b_hue + n_temp * (g_hue - b_hue)), 1, .4)
+                    else:
+                        denom = (max_temp - avg_temp)
+                        n_temp = (cell.temperature - avg_temp) / denom if denom != 0 else 0
+                        new_colors = hsv_to_rgb((g_hue + n_temp * (r_hue - g_hue)), 1, .4)
+                    grid[yi][xi].color = (new_colors[0]*255, new_colors[1]*255, new_colors[2]*255)
+                else:
+                    continue
+
 
 def check_interactions(x, y, grid):
     """Check for interactions with adjacent particles"""
