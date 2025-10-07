@@ -60,11 +60,13 @@ class Particle:
         grid[new_y][new_x], grid[old_y][old_x] = grid[old_y][old_x], grid[new_y][new_x]
 
 class Static(Particle):
+    locked = False
     """Base class for particles that don't move"""
     def __init__(self, base_r, base_g, base_b, color_variance_red=20, color_variance_green=None, color_variance_blue=None):
         super().__init__(base_r, base_g, base_b, color_variance_red, color_variance_green, color_variance_blue)
 
 class StraightFalling(Particle):
+    locked = False
     """Base class for particles that fall straight down"""
     def __init__(self, base_r, base_g, base_b, color_variance_red=20, color_variance_green=None, color_variance_blue=None):
         super().__init__(base_r, base_g, base_b, color_variance_red, color_variance_green, color_variance_blue)
@@ -81,6 +83,7 @@ class StraightFalling(Particle):
         return False
 
 class Granular(Particle):
+    locked = False
     """Base class for sand-like particles that fall and slide"""
     def __init__(self, base_r, base_g, base_b, color_variance_red=20, color_variance_green=None, color_variance_blue=None):
         super().__init__(base_r, base_g, base_b, color_variance_red, color_variance_green, color_variance_blue)
@@ -138,6 +141,7 @@ class Granular(Particle):
                 return self.check_bottom_right(x, y, grid, False)
 
 class Liquid(Particle):
+    locked = False
     """Base class for liquid particles that fall, slide, and flow horizontally"""
     def __init__(self, base_r, base_g, base_b, color_variance_red=20, color_variance_green=None, color_variance_blue=None):
         super().__init__(base_r, base_g, base_b, color_variance_red, color_variance_green, color_variance_blue)
@@ -230,6 +234,7 @@ class Liquid(Particle):
                 return self.check_bottom_right(x, y, grid, False)
 
 class LightGas(Particle):
+    locked = False
     def __init__(self, base_r, base_g, base_b, color_variance_red=20, color_variance_green=None, color_variance_blue=None):
         super().__init__(base_r, base_g, base_b, color_variance_red, color_variance_green, color_variance_blue)
     
@@ -480,6 +485,7 @@ class LightGas(Particle):
 
 
 class Bouncy(Particle):
+    locked = True
     def __init__(self, base_r, base_g, base_b, color_variance_red=20, color_variance_green=None, color_variance_blue=None):
         super().__init__(base_r, base_g, base_b, color_variance_red, color_variance_green, color_variance_blue)
         self.directions = ["topleft", "topright", "bottomleft", "bottomright"]
@@ -626,6 +632,7 @@ class Bouncy(Particle):
 
 # Granular particles
 class sand(Granular):
+    locked = False
     color = (194, 178, 128)  # Sandy beige color
     color_variance = (20,)
     def __init__(self):
@@ -638,6 +645,7 @@ class sand(Granular):
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 class dirt(Granular):
+    locked = False
     color = (139, 115, 85)  # Earthy brown, lighter and less saturated than mud
     color_variance = (20,)
     def __init__(self):
@@ -650,6 +658,7 @@ class dirt(Granular):
 
 # Liquid particles  
 class water(Liquid):
+    locked = False
     color = (64, 164, 223)  # Blue color
     color_variance = (20,)
     def __init__(self):
@@ -667,6 +676,7 @@ class water(Liquid):
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 class lava(Liquid):
+    locked = False
     color = (255, 80, 0)
     color_variance = (45,)
     def __init__(self):
@@ -684,8 +694,34 @@ class lava(Liquid):
 
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
+class acid(Liquid):
+    locked = False
+    color = (100, 255, 100)  # Bright green color
+    color_variance = (20,)
+    def __init__(self):
+        self.conductivity = 0.025
+        self.decay_factor = 0.004
+        self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        self.lifetime = randint(100,200)
+        self.max_lifetime = self.lifetime
+        self.viscosity = 1 # Acid moves slower
+        super().__init__(self.color[0], self.color[1], self.color[2])
+
+class corrosive_byproducts(Liquid):
+    locked = True
+    color = (150, 75, 0)  # Brownish color
+    color_variance = (30,)
+    def __init__(self):
+        self.conductivity = 0.02
+        self.decay_factor = 0.004
+        self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        self.lifetime = randint(150,300)
+        self.max_lifetime = self.lifetime
+        super().__init__(self.color[0], self.color[1], self.color[2])
+
 # Straight falling particles
 class stone(StraightFalling):
+    locked = False
     color = (68, 68, 68)  # Gray with less variance
     color_variance = (10,)
     def __init__(self):
@@ -695,6 +731,7 @@ class stone(StraightFalling):
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class mud(StraightFalling):
+    locked = False
     color = (101, 67, 33)   # Dark brown color
     color_variance = (20,)
     def __init__(self):
@@ -706,6 +743,7 @@ class mud(StraightFalling):
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 class wet_sand(StraightFalling):
+    locked = False
     color = (160, 140, 100)  # Darker sandy beige color
     color_variance = (20,)
     def __init__(self):
@@ -720,6 +758,7 @@ class wet_sand(StraightFalling):
 
 # Light Gaseous particles
 class steam(LightGas):
+    locked = False
     color = (200, 200, 220)  # Light grayish color
     color_variance = (15,)
     def __init__(self):
@@ -738,18 +777,34 @@ class steam(LightGas):
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class fire(LightGas):
-    color = (255, 150, 0)  # Light grayish color
-    color_variance = (15,)
+    locked = False
+    color = (255, 120, 30)  # Bright orange, distinct from lava
+    color_variance = (30,)  # More variance than lava for a flickering effect
+    ignore_cooling = True
     def __init__(self):
         self.conductivity = 0.05
         self.decay_factor = 0.015
-        self.temperature = 187.5 + (random() * 175.0 - 87.5)
-        self.lifetime = randint(30, 60)  # Lifetime in frames
+        self.temperature = 187.5 + (random() * 175.0 - 87.5) # Temperature variation across 100..275 (centered variation)
+        self.lifetime = randint(60, 120)  # Lifetime in frames
+        self.max_lifetime = self.lifetime
+        super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
+
+class cold_fire(LightGas):
+    locked = False
+    color = (60, 120, 255)  # Brighter blue color
+    color_variance = (20,)  # Moderate variance for a flickering effect
+    ignore_cooling = True
+    def __init__(self):
+        self.conductivity = 0.015
+        self.decay_factor = 0.010
+        self.temperature = -150.0 + (random() * 50.0 - 25.0) # Temperature variation across -175..-125 (centered variation)
+        self.lifetime = randint(60, 120)  # Lifetime in frames
         self.max_lifetime = self.lifetime
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 # Static particles
 class empty(Static):
+    locked = True
     color = (0, 0, 0)  # Black with no variance
     color_variance = (0,)
     def __init__(self):
@@ -759,6 +814,7 @@ class empty(Static):
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class basalt(Static):
+    locked = False
     color = (76, 74, 74)  # Dark blue with minimal variance
     color_variance = (35,)
     def __init__(self):
@@ -774,6 +830,7 @@ class basalt(Static):
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class ice(Static):
+    locked = True
     color = (180, 220, 255)  # Pale blue-white for ice
     color_variance = (10,)
     def __init__(self):
@@ -790,6 +847,7 @@ class ice(Static):
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class tungsten(Static):
+    locked = False
     color = (180, 180, 200)  # Silvery light gray-blue, still fits tungsten
     color_variance = (6,)
     def __init__(self):
@@ -805,8 +863,29 @@ class tungsten(Static):
         self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
+class copper(Static):
+    locked = False
+    color = (184, 115, 51)  # Copper color
+    color_variance = (10,)
+    def __init__(self):
+        # Copper is a very good conductor
+        self.conductivity = 0.15
+        # Decays quickly toward ambient temperature (fast heat transfer)
+        self.decay_factor = 0.015
+        # Default temperature is ambient
+        self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        # Copper melts at 1085°C, turns into empty (simulate melting away)
+        # Corroded copper: more greenish (e.g., verdigris)
+        self.corroded_color = colorer(80, 180, 120, copper.color_variance[0] if hasattr(copper, 'color_variance') else 20)
+        self.melt_temp = 1085
+        self.melt_to = empty
+        self.acidification_tick = 5 + random() * 4  # random float between 5 and 9
+        self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
+        super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
+
 # Bouncy particles
 class bouncy_ball(Bouncy):
+    locked = True
     color = (255, 0, 255)  # Bright magenta color
     color_variance = (20,)
     def __init__(self):
@@ -851,6 +930,8 @@ def draw_grid():
 def get_all_subclasses(cls):
     subclasses = []
     for subclass in cls.__subclasses__():
+        if subclass.locked:
+            continue
         subclasses.append(subclass)
         subclasses.extend(get_all_subclasses(subclass))
     return subclasses
@@ -907,7 +988,7 @@ particle_list = [cls for cls in get_all_subclasses(Particle)
 
 for y in range(0,47):
     for x in range(0,50):
-        grid[y][x] = tungsten()
+        grid[y][x] = copper()
 
 def handle_particle_specials(x, y, grid):
     target=grid[y][x]
@@ -951,14 +1032,14 @@ def handle_particle_specials(x, y, grid):
 
     
     #! Fire>Dissapear
-    if isinstance(grid[y][x], fire):
+    if isinstance(target, ( fire, cold_fire )):
         grid[y][x].lifetime -= 1
         if grid[y][x].lifetime <= 0:
             grid[y][x] = empty()
 
     #! Handle solidification
     #! Color transitions will apply.
-    if hasattr(grid[y][x], 'solidify_to'):
+    if hasattr(target, 'solidify_to'):
         p = grid[y][x]
 
         # use the particle's original spawned color for the transition
@@ -997,7 +1078,7 @@ def handle_particle_specials(x, y, grid):
 
     #! Handle melting
     #! Color transitions will apply
-    if hasattr(grid[y][x], 'melt_to'):
+    if hasattr(target, 'melt_to'):
         p = grid[y][x]
 
         # use the particle's original spawned color for the transition
@@ -1038,7 +1119,7 @@ def handle_particle_specials(x, y, grid):
             grid[y][x].temperature = target.temperature
 
     #! Mud>Dirt
-    if isinstance(grid[y][x], mud):
+    if isinstance(target, mud):
         p = grid[y][x]
         p.lifetime -= 1
         red_drying_increment = ((PARTICLE_COLORS[dirt][0] - PARTICLE_COLORS[mud][0])/p.max_lifetime)
@@ -1052,7 +1133,7 @@ def handle_particle_specials(x, y, grid):
         if p.lifetime <= 0:
             grid[y][x] = dirt()
     
-    if isinstance(grid[y][x], wet_sand):
+    if isinstance(target, wet_sand):
         p = grid[y][x]
         p.lifetime -= 1
         red_drying_increment = ((PARTICLE_COLORS[sand][0] - PARTICLE_COLORS[wet_sand][0])/p.max_lifetime)
@@ -1066,7 +1147,53 @@ def handle_particle_specials(x, y, grid):
         if p.lifetime <= 0:
             grid[y][x] = sand()
 
-    
+    #! Acidic Corrosion
+    if hasattr(target, 'corroded_color'):
+        # Check for acid neighbors, accounting for grid edges
+        acid_neighbor = False
+        if y > 0 and isinstance(grid[y-1][x], acid):
+            acid_neighbor = True
+        if y < height - 1 and isinstance(grid[y+1][x], acid):
+            acid_neighbor = True
+        if x < width - 1 and isinstance(grid[y][x+1], acid):
+            acid_neighbor = True
+        if x > 0 and isinstance(grid[y][x-1], acid):
+            acid_neighbor = True
+        if acid_neighbor:
+            # use the particle's original spawned color for the transition
+            original_hsv = rgb_to_hsv(target.spawn_color[0] / 255.0,
+                                    target.spawn_color[1] / 255.0,
+                                    target.spawn_color[2] / 255.0)
+            new_hsv = rgb_to_hsv(acid.color[0] / 255.0,
+                                    acid.color[1] / 255.0,
+                                    acid.color[2] / 255.0)
+
+            if not hasattr(target, 'acidification_progress'):
+                target.acidification_progress = 0
+            if not hasattr(target, 'acidification_tick'):
+                target.acidification_tick = 2
+            target.acidification_progress += target.acidification_tick
+
+            # interpolate from the original (spawn) HSV -> corroded HSV
+            new_h = original_hsv[0] + (new_hsv[0] - original_hsv[0]) * target.acidification_progress/100
+            new_s = original_hsv[1] + (new_hsv[1] - original_hsv[1]) * target.acidification_progress/100
+            new_v = original_hsv[2] + (new_hsv[2] - original_hsv[2]) * target.acidification_progress/100
+
+            new_rgb = hsv_to_rgb(new_h, new_s, new_v)
+            # assign ints and clamp
+            target.color = (int(max(0, min(255, new_rgb[0] * 255))),
+                    int(max(0, min(255, new_rgb[1] * 255))),
+                    int(max(0, min(255, new_rgb[2] * 255))))
+            grid[y][x].color = target.color
+            if target.acidification_progress >= 100:
+                if random() < 0.6:
+                    grid[y][x] = acid()
+                    grid[y][x].temperature = target.temperature
+                else:
+                    grid[y][x] = corrosive_byproducts()
+                    grid[y][x].color = target.corroded_color
+                    grid[y][x].temperature = target.temperature
+
 
 
     
@@ -1186,6 +1313,7 @@ r_hue = 0/360.0
 g_hue = 120/360.0
 b_hue = 240/360.0
 thermogram = False
+all_neighbours_temp = False # If true, particles will consider all 8 neighbours for thermal conduction, not just orthogonal ones
 def update_frame():
     # First pass: Movement
     for y in range(height-1, -1, -1):  # Bottom to top
@@ -1234,6 +1362,9 @@ def update_frame():
     for y in range(height):
         for x in range(width):
             cell=grid[y][x]
+            if hasattr(cell, 'ignore_cooling') and cell.ignore_cooling:
+                cell.new_temperature = cell.temperature
+                continue
             conduction = 0
             ambient_decay = cell.temperature + (ambient_temperature - cell.temperature) * cell.decay_factor
 
@@ -1249,6 +1380,19 @@ def update_frame():
             if x < width-1:
                 right = grid[y][x+1]
                 conduction += (right.temperature - cell.temperature) * ((right.conductivity + cell.conductivity)/2)
+            if all_neighbours_temp:
+                if x > 0 and y > 0:
+                    upper_left = grid[y-1][x-1]
+                    conduction += (upper_left.temperature - cell.temperature) * ((upper_left.conductivity + cell.conductivity)/2) * 0.7071
+                if x < width-1 and y > 0:
+                    upper_right = grid[y-1][x+1]
+                    conduction += (upper_right.temperature - cell.temperature) * ((upper_right.conductivity + cell.conductivity)/2) * 0.7071
+                if x > 0 and y < height-1:
+                    lower_left = grid[y+1][x-1]
+                    conduction += (lower_left.temperature - cell.temperature) * ((lower_left.conductivity + cell.conductivity)/2) * 0.7071
+                if x < width-1 and y < height-1:
+                    lower_right = grid[y+1][x+1]
+                    conduction += (lower_right.temperature - cell.temperature) * ((lower_right.conductivity + cell.conductivity)/2) * 0.7071
             cell.new_temperature = ambient_decay + conduction
     for y in range(height):
         for x in range(width):
@@ -1266,6 +1410,11 @@ def update_frame():
     min_temp = min(all_temperatures)
     max_temp = max(all_temperatures)
     avg_temp = sum(all_temperatures)/len(all_temperatures)
+    #^ Clamp extremes to prevent skewing
+    if max_temp < 200:
+        max_temp = 200
+    if min_temp > 0:
+        min_temp = 0
     #^ Normalize and display temperature
     if thermogram == True:
         for yi in range(height):
@@ -1367,11 +1516,14 @@ def event_handler():
             if mouse_x < width * cell_size:  # Click in grid area
                 grid_x = mouse_x // cell_size
                 grid_y = mouse_y // cell_size
+                cell=grid[grid_y][grid_x]
                 if grid_x < width and grid_y < height:
                     if event.button == 1:  # Left click
                         grid[grid_y][grid_x] = selected_particle()
+                        grid[grid_y][grid_x].temperature = cell.temperature
                     elif event.button == 3:  # Right click
                         grid[grid_y][grid_x] = empty()
+                        grid[grid_y][grid_x].temperature = cell.temperature
             else:  # Click in sidebar
                 sidebar_x = width * cell_size
                 # check if clicked the temperature input box
