@@ -883,6 +883,16 @@ class copper(Static):
         self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
+class crystal(Static):
+    locked = False
+    color = (40, 40, 40)  # Darker than mid-dark, pure grey, no tint
+    color_variance = (0,)
+    def __init__(self):
+        self.conductivity = 0.025
+        self.decay_factor = 0.002
+        self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
+
 # Bouncy particles
 class bouncy_ball(Bouncy):
     locked = True
@@ -988,7 +998,7 @@ particle_list = [cls for cls in get_all_subclasses(Particle)
 
 for y in range(0,47):
     for x in range(0,50):
-        grid[y][x] = copper()
+        grid[y][x] = crystal()
 
 def handle_particle_specials(x, y, grid):
     target=grid[y][x]
@@ -1186,14 +1196,40 @@ def handle_particle_specials(x, y, grid):
                     int(max(0, min(255, new_rgb[2] * 255))))
             grid[y][x].color = target.color
             if target.acidification_progress >= 100:
-                if random() < 0.6:
+                if random() < 0.8:
                     grid[y][x] = acid()
                     grid[y][x].temperature = target.temperature
+                    heat_release = 10 + random() * 10  # 10–20 °C bump
+                    grid[y][x].temperature = target.temperature + heat_release
                 else:
                     grid[y][x] = corrosive_byproducts()
                     grid[y][x].color = target.corroded_color
                     grid[y][x].temperature = target.temperature
+                    heat_release = 10 + random() * 10  # 10–20 °C bump
+                    grid[y][x].temperature = target.temperature + heat_release
 
+    #! Crystal color spread
+    if isinstance(target, crystal):
+        r_sum = g_sum = b_sum = 0
+        non_empty = 0
+        for i in range(-1,2):
+            for j in range(-1,2):
+                nx, ny = x+i, y+j
+                if (i == 0 and j == 0) or not (0 <= nx < width and 0 <= ny < height):
+                    continue
+                cell = grid[ny][nx]
+                if isinstance(cell, empty):
+                    continue
+                else:
+                    non_empty += 1
+                r_sum += cell.color[0]
+                g_sum += cell.color[1]
+                b_sum += cell.color[2]
+        if non_empty != 0:
+            avg_hsv = rgb_to_hsv(r_sum/non_empty, g_sum/non_empty, b_sum/non_empty)
+            dimmed_rgb = hsv_to_rgb(avg_hsv[0], avg_hsv[1], avg_hsv[2]*0.96)
+            
+            grid[y][x].color = dimmed_rgb
 
 
     
@@ -1313,7 +1349,7 @@ r_hue = 0/360.0
 g_hue = 120/360.0
 b_hue = 240/360.0
 thermogram = False
-all_neighbours_temp = False # If true, particles will consider all 8 neighbours for thermal conduction, not just orthogonal ones
+all_neighbours_temp = True # If true, particles will consider all 8 neighbours for thermal conduction, not just orthogonal ones
 def update_frame():
     # First pass: Movement
     for y in range(height-1, -1, -1):  # Bottom to top
@@ -1402,37 +1438,38 @@ def update_frame():
 
     # Fifth pass:
     #! Handle background thermogram
-    all_temperatures=[]
-    #^ Gather temp data
-    for yi in range(height):
-        for xi in range(width):
-            all_temperatures.append(grid[yi][xi].temperature)
-    min_temp = min(all_temperatures)
-    max_temp = max(all_temperatures)
-    avg_temp = sum(all_temperatures)/len(all_temperatures)
-    #^ Clamp extremes to prevent skewing
-    if max_temp < 200:
-        max_temp = 200
-    if min_temp > 0:
-        min_temp = 0
-    #^ Normalize and display temperature
     if thermogram == True:
+        all_temperatures=[]
+        #^ Gather temp data
         for yi in range(height):
             for xi in range(width):
-                cell = grid[yi][xi]
-                if isinstance(cell, empty):
-                    # Prevent division by zero
-                    if cell.temperature < avg_temp:
-                        denom = (avg_temp - min_temp)
-                        n_temp = (cell.temperature - min_temp) / denom if denom != 0 else 0
-                        new_colors = hsv_to_rgb((b_hue + n_temp * (g_hue - b_hue)), 1, .4)
+                all_temperatures.append(grid[yi][xi].temperature)
+        min_temp = min(all_temperatures)
+        max_temp = max(all_temperatures)
+        avg_temp = sum(all_temperatures)/len(all_temperatures)
+        #^ Clamp extremes to prevent skewing
+        if max_temp < 100:
+            max_temp = 50
+        if min_temp > 0:
+            min_temp = 0
+        #^ Normalize and display temperature
+        if thermogram == True:
+            for yi in range(height):
+                for xi in range(width):
+                    cell = grid[yi][xi]
+                    if isinstance(cell, empty):
+                        # Prevent division by zero
+                        if cell.temperature < avg_temp:
+                            denom = (avg_temp - min_temp)
+                            n_temp = (cell.temperature - min_temp) / denom if denom != 0 else 0
+                            new_colors = hsv_to_rgb((b_hue + n_temp * (g_hue - b_hue)), 1, .4)
+                        else:
+                            denom = (max_temp - avg_temp)
+                            n_temp = (cell.temperature - avg_temp) / denom if denom != 0 else 0
+                            new_colors = hsv_to_rgb((g_hue + n_temp * (r_hue - g_hue)), 1, .4)
+                        grid[yi][xi].color = (new_colors[0]*255, new_colors[1]*255, new_colors[2]*255)
                     else:
-                        denom = (max_temp - avg_temp)
-                        n_temp = (cell.temperature - avg_temp) / denom if denom != 0 else 0
-                        new_colors = hsv_to_rgb((g_hue + n_temp * (r_hue - g_hue)), 1, .4)
-                    grid[yi][xi].color = (new_colors[0]*255, new_colors[1]*255, new_colors[2]*255)
-                else:
-                    continue
+                        continue
 
 
 def check_interactions(x, y, grid):
@@ -1581,6 +1618,14 @@ def update_grid():
             if 0 <= grid_x < width and 0 <= grid_y < height:
                 if mouse_buttons[0]:
                     grid[grid_y][grid_x] = selected_particle()
+                    if grid_x - 1 >= 0:
+                        grid[grid_y][grid_x-1] = selected_particle()
+                    if grid_x + 1 < width:
+                        grid[grid_y][grid_x+1] = selected_particle()
+                    if grid_y - 1 >= 0:
+                        grid[grid_y-1][grid_x] = selected_particle()
+                    if grid_y + 1 < height:
+                        grid[grid_y+1][grid_x] = selected_particle()
                 elif mouse_buttons[2]:
                     grid[grid_y][grid_x] = empty()
 
