@@ -656,6 +656,19 @@ class dirt(Granular):
         self.color_variance = (20,)
         super().__init__(self.color[0], self.color[1], self.color[2])
 
+class virus(Granular):
+    locked = False
+    color = (128, 0, 128)  # Earthy brown, lighter and less saturated than mud
+    color_variance = (20,)
+    first_touch = None
+    def __init__(self):
+        self.conductivity = 0.02
+        self.decay_factor = 0.003
+        self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        # color variance: default
+        self.color_variance = (20,)
+        super().__init__(self.color[0], self.color[1], self.color[2])
+
 # Liquid particles  
 class water(Liquid):
     locked = False
@@ -737,6 +750,7 @@ class mud(StraightFalling):
     def __init__(self):
         self.conductivity = 0.02
         self.decay_factor = 0.003
+        self.dries_to = dirt
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         self.lifetime = randint(50,100)
         self.max_lifetime = self.lifetime
@@ -749,6 +763,7 @@ class wet_sand(StraightFalling):
     def __init__(self):
         self.conductivity = 0.02
         self.decay_factor = 0.003
+        self.dries_to = sand
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         self.lifetime = randint(50,100)
         self.max_lifetime = self.lifetime
@@ -913,9 +928,9 @@ class bouncy_ball(Bouncy):
         self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
         super().__init__(self.color[0], self.color[1], self.color[2])
 
-width, height=100,100
+width, height = 100, 100
 grid = [[empty() for _ in range(width)] for _ in range(height)]
-cell_size=10
+cell_size = 7
 sidebar_width = 150
 
 
@@ -1141,7 +1156,7 @@ def handle_particle_specials(x, y, grid):
         p.color = (new_r, new_g, new_b)
 
         if p.lifetime <= 0:
-            grid[y][x] = dirt()
+            grid[y][x] = p.dries_to()
     
     if isinstance(target, wet_sand):
         p = grid[y][x]
