@@ -642,6 +642,8 @@ class sand(Granular):
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         # color variance: default (same as Particle default)
         self.color_variance = (20,)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 class dirt(Granular):
@@ -654,20 +656,69 @@ class dirt(Granular):
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         # color variance: default
         self.color_variance = (20,)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 class virus(Granular):
     locked = False
-    color = (128, 0, 128)  # Earthy brown, lighter and less saturated than mud
+    color = (128, 0, 128)
     color_variance = (20,)
-    first_touch = None
     def __init__(self):
+        self.first_touch = None
         self.conductivity = 0.02
         self.decay_factor = 0.003
+        self.frames_to_return = 80
+        self.timer = 0
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         # color variance: default
         self.color_variance = (20,)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2])
+    
+    # Only allow moving into empty() — no liquids/gases/other particles.
+    def check_movement(self, x, y, grid):
+        return self.check_below(x, y, grid)
+
+    def check_bottom_left(self, x, y, grid, other):
+        if x <= 0:
+            if other:
+                return False
+            return self.check_bottom_right(x, y, grid, True)
+        target = grid[y+1][x-1]
+        if isinstance(target, empty):
+            self.move(grid, y, x, y+1, x-1)
+            return True
+        if other:
+            return False
+        return self.check_bottom_right(x, y, grid, True)
+
+    def check_bottom_right(self, x, y, grid, other):
+        if x >= width - 1:
+            if other:
+                return False
+            return self.check_bottom_left(x, y, grid, True)
+        target = grid[y+1][x+1]
+        if isinstance(target, empty):
+            self.move(grid, y, x, y+1, x+1)
+            return True
+        if other:
+            return False
+        return self.check_bottom_left(x, y, grid, True)
+
+    def check_below(self, x, y, grid):
+        if y >= height - 1:
+            return False
+        target = grid[y+1][x]
+        if isinstance(target, empty):
+            self.move(grid, y, x, y+1, x)
+            return True
+        # try sliding only into empty diagonals
+        if randint(0,1) == 0:
+            return self.check_bottom_left(x, y, grid, False)
+        else:
+            return self.check_bottom_right(x, y, grid, False)
 
 # Liquid particles  
 class water(Liquid):
@@ -685,6 +736,8 @@ class water(Liquid):
         self.solidify_temp = 0
         self.solidify_to = ice
         self.solidify_color = colorer(ice.color[0], ice.color[1], ice.color[2], ice.color_variance[0] if hasattr(ice, 'color_variance') else 20)
+        self.viscosity = 0
+        self.viscosity_timer = 0
 
         super().__init__(self.color[0], self.color[1], self.color[2])
 
@@ -698,6 +751,8 @@ class lava(Liquid):
         # Base 1125 +/-125 variation
         self.temperature = 1125 + (random() * 250.0 - 125.0)
 
+        self.viscosity = 0
+        self.viscosity_timer = 0
         self.solidify_temp = 200 # Celsius
         self.solidify_to = basalt
         self.solidify_color = colorer(basalt.color[0], basalt.color[1], basalt.color[2], basalt.color_variance[0] if hasattr(basalt, 'color_variance') else 20)
@@ -718,6 +773,7 @@ class acid(Liquid):
         self.lifetime = randint(100,200)
         self.max_lifetime = self.lifetime
         self.viscosity = 1 # Acid moves slower
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 class corrosive_byproducts(Liquid):
@@ -730,6 +786,8 @@ class corrosive_byproducts(Liquid):
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         self.lifetime = randint(150,300)
         self.max_lifetime = self.lifetime
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 # Straight falling particles
@@ -741,6 +799,8 @@ class stone(StraightFalling):
         self.conductivity = 0.03
         self.decay_factor = 0.002
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class mud(StraightFalling):
@@ -754,6 +814,8 @@ class mud(StraightFalling):
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         self.lifetime = randint(50,100)
         self.max_lifetime = self.lifetime
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 class wet_sand(StraightFalling):
@@ -767,6 +829,8 @@ class wet_sand(StraightFalling):
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
         self.lifetime = randint(50,100)
         self.max_lifetime = self.lifetime
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2])
 
 
@@ -789,6 +853,8 @@ class steam(LightGas):
 
         # Temperature variation across 100..275 (centered variation)
         self.temperature = 187.5 + (random() * 175.0 - 87.5)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class fire(LightGas):
@@ -802,6 +868,8 @@ class fire(LightGas):
         self.temperature = 187.5 + (random() * 175.0 - 87.5) # Temperature variation across 100..275 (centered variation)
         self.lifetime = randint(60, 120)  # Lifetime in frames
         self.max_lifetime = self.lifetime
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class cold_fire(LightGas):
@@ -815,6 +883,8 @@ class cold_fire(LightGas):
         self.temperature = -150.0 + (random() * 50.0 - 25.0) # Temperature variation across -175..-125 (centered variation)
         self.lifetime = randint(60, 120)  # Lifetime in frames
         self.max_lifetime = self.lifetime
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 # Static particles
@@ -826,6 +896,8 @@ class empty(Static):
         self.conductivity = 0.01
         self.decay_factor = 0.035
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class basalt(Static):
@@ -842,6 +914,8 @@ class basalt(Static):
         self.melt_color = colorer(lava.color[0], lava.color[1], lava.color[2], lava.color_variance[0] if hasattr(lava, 'color_variance') else 20)
 
         # color variance: basalt has larger variance
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class ice(Static):
@@ -859,6 +933,8 @@ class ice(Static):
         self.melt_temp = 0
         self.melt_to = water
         self.melt_color = colorer(water.color[0], water.color[1], water.color[2], water.color_variance[0] if hasattr(water, 'color_variance') else 20)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class tungsten(Static):
@@ -876,6 +952,8 @@ class tungsten(Static):
         self.melt_temp = 3422
         self.melt_to = empty
         self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class copper(Static):
@@ -895,7 +973,9 @@ class copper(Static):
         self.melt_temp = 1085
         self.melt_to = empty
         self.acidification_tick = 5 + random() * 4  # random float between 5 and 9
-        self.melt_color = colorer(empty.color[0], empty.color[1], empty.color[2], empty.color_variance[0] if hasattr(empty, 'color_variance') else 0)
+        self.melt_color = colorer(lava.color[0], lava.color[1], lava.color[2], lava.color_variance[0] if hasattr(lava, 'color_variance') else 0)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 class crystal(Static):
@@ -906,6 +986,8 @@ class crystal(Static):
         self.conductivity = 0.025
         self.decay_factor = 0.002
         self.temperature = globals().get('ambient_temperature', 20) + (random() * 5.0 - 2.5)
+        self.viscosity = 0
+        self.viscosity_timer = 0
         super().__init__(self.color[0], self.color[1], self.color[2], *self.color_variance)
 
 # Bouncy particles
@@ -930,7 +1012,7 @@ class bouncy_ball(Bouncy):
 
 width, height = 100, 100
 grid = [[empty() for _ in range(width)] for _ in range(height)]
-cell_size = 7
+cell_size = 10
 sidebar_width = 150
 
 
@@ -1013,7 +1095,7 @@ particle_list = [cls for cls in get_all_subclasses(Particle)
 
 for y in range(0,47):
     for x in range(0,50):
-        grid[y][x] = crystal()
+        grid[y][x] = copper()
 
 def handle_particle_specials(x, y, grid):
     target=grid[y][x]
@@ -1055,7 +1137,6 @@ def handle_particle_specials(x, y, grid):
                     grid[steam_neighbours[2][0]][steam_neighbours[2][1]] = empty()
                     grid[steam_neighbours[2][0]][steam_neighbours[2][1]].temperature = neighbour_3.temperature
 
-    
     #! Fire>Dissapear
     if isinstance(target, ( fire, cold_fire )):
         grid[y][x].lifetime -= 1
@@ -1100,7 +1181,6 @@ def handle_particle_specials(x, y, grid):
             grid[y][x].temperature = p.temperature
             grid[y][x].color = p.solidify_color
     
-
     #! Handle melting
     #! Color transitions will apply
     if hasattr(target, 'melt_to'):
@@ -1246,7 +1326,69 @@ def handle_particle_specials(x, y, grid):
             
             grid[y][x].color = dimmed_rgb
 
+    # if isinstance(target, copper):
+    #     for i in range(-1,2):
+    #         for j in range(-1,2):
+    #             nx, ny = x+i, y+j
+    #             if (i == 0 and j == 0) or not (0 <= nx < width and 0 <= ny < height):
+    #                 continue
+    #             if isinstance(grid[ny][nx], empty):
+    #                 grid[y][x].color = (255, 0, 0)
+    #                 break
+                
 
+def handle_virus_spread(x,y, grid):
+    target = grid[y][x]
+
+    if hasattr(target, 'immune_to_virus') and target.immune_to_virus:
+        if target.immunity_timer >= target.frames_immune:
+            target.immune_to_virus = False
+            target.immunity_timer = 0
+            return
+        target.immunity_timer += 1
+
+    if not isinstance(target, virus) or hasattr(target, 'immune_to_virus') and target.immune_to_virus:
+        return
+    
+    if hasattr(target, 'turn_to'):
+        print("should work")
+    if hasattr(target, 'frames_to_return') and hasattr(target, 'first_touch'):
+        if target.timer >= target.frames_to_return:
+            grid[y][x] = target.first_touch()
+            grid[y][x].temperature = target.temperature
+            grid[y][x].immune_to_virus = True
+            grid[y][x].frames_immune = 200
+            grid[y][x].immunity_timer = 0
+            return
+        target.timer += 1
+
+    #! Virus change spread
+    if not hasattr(target, 'first_touch'):
+        grid[y][x].first_touch = None
+
+    for i in range(-1,2):
+        for j in range(-1,2):
+            nx, ny = x+i, y+j
+            if (i == 0 and j == 0) or not (0 <= nx < width and 0 <= ny < height):
+                continue
+
+            neighbour = grid[ny][nx]
+            if hasattr(neighbour, 'immune_to_virus') and neighbour.immune_to_virus:
+                continue
+
+            if not hasattr(neighbour, 'first_touch'):
+                grid[ny][nx].first_touch = None
+            
+            if not isinstance(neighbour, (empty, virus)):
+                if target.first_touch == None:
+                    grid[y][x].first_touch = type(neighbour)
+
+                grid[ny][nx].turn_to = (virus, grid[y][x].first_touch)
+
+            elif isinstance(neighbour, virus):
+                grid[ny][nx].first_touch = grid[y][x].first_touch
+# Explain why it doesn't always take the first virus' first_touch.
+# E.g: If you have a large cube of copper, put a circle a filled circle in the middle, it transforms everything into the copper, not the water.
     
 
 def draw_sidebar():
@@ -1370,7 +1512,19 @@ def update_frame():
     for y in range(height-1, -1, -1):  # Bottom to top
         for x in range(width):
             cell = grid[y][x]
-           
+
+            if hasattr(cell, 'turn_to') and random() > 0.6:
+                grid[y][x] = cell.turn_to[0]()
+                grid[y][x].first_touch = cell.turn_to[1]
+            
+            #! Clumping
+            for i in range(-1, 2):
+                for j in range(-1, 2):
+                    ny, nx = y+i, x+j
+                    if (i == 0 and j == 0) or not (0 <= nx < width and 0 <= ny < height) or not isinstance(grid[ny][nx], type(cell)):
+                        continue
+                    if random() < .015:
+                        grid[ny][nx].viscosity_timer -= 1
             # Check if the cell has a check_below method and hasn't moved
             if hasattr(cell, 'check_movement') and hasattr(cell, 'has_moved') and not cell.has_moved:
                 
@@ -1394,6 +1548,7 @@ def update_frame():
         for x in range(width):
             cell = grid[y][x]
 
+            handle_virus_spread(x,y, grid)
             handle_particle_specials(x, y, grid)
             #^ Example: Aging steam particles eventually turn into water
 
@@ -1654,4 +1809,4 @@ while running:
         update_frame()
     draw_grid()
     draw_sidebar()
-    clock.tick(60)
+    clock.tick(30)
