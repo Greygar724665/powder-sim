@@ -74,8 +74,3 @@ You can tweak the simulation by modifying variables in `game.py`:
 
 The simulation uses a class hierarchy where all particles inherit from a base `Particle` class. There are several behavior categories (Granular, Liquid, Gas, Static) that define how particles move.  The temperature system allows heat to transfer between neighboring particles, causing phase changes when thresholds are reached.
 
-## License
-
-If you're wondering why this README was so over-the-top detailed before - I asked Claude to keep it simple and it apparently didn't understand "not very detailed." This version is actually written by a human (mostly).
-
-This project is open source and available for educational and personal use.
